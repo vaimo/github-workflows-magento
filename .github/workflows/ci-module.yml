@@ -1,0 +1,51 @@
+name: Adobe Commerce - Module CI Workflow
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Adobe Commerce version.'
+        required: true
+        type: string
+      module-source-directory:
+        description: 'Set module source directory. Only necessary for the modules with the src structure.'
+        required: false
+        type: string
+        default: './'
+    secrets:
+      composer-auth:
+        description: 'Content of auth.json file.'
+        required: true
+
+jobs:
+  code-sniffer:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vaimo/image-action-magento:${{inputs.version}}-v1
+    steps:
+      - name: Code Sniffer action
+        uses: vaimo/action-magento-code-sniffer@v1
+        with:
+          directories: ${{inputs.module-source-directory}}
+
+  mess-detector:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vaimo/image-action-magento:${{inputs.version}}-v1
+    steps:
+      - name: Mess Detector action
+        uses: vaimo/action-magento-mess-detector@v1
+        with:
+          directories: ${{inputs.module-source-directory}}
+
+  unit-tests:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vaimo/image-action-magento:${{inputs.version}}-v1
+    steps:
+      - name: Unit Tests action
+        uses: vaimo/action-magento-tests@v1
+        with:
+          composer-auth: ${{secrets.composer-auth}}

@@ -1,0 +1,132 @@
+name: Adobe Commerce Project CI Workflow
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Adobe Commerce version.'
+        required: true
+        type: string
+      working-directory:
+        description: 'Set working directory for your workflow.'
+        required: false
+        type: string
+      code-sniffer-directories:
+        description: 'Select directories that should be evaluated by code sniffer (separated by comma).'
+        required: false
+        type: string
+        default: app/code/Vaimo
+      mess-detector-directories:
+        description: 'Select directories that should be evaluated by mess-detector (separated by comma).'
+        required: false
+        type: string
+        default: app/code/Vaimo
+      unit-tests-suites:
+        description: 'Unit test suites to be executed.'
+        required: false
+        type: string
+      integration-tests-suites:
+        description: 'Integration test suites to be executed.'
+        required: false
+        type: string
+      full-analysis:
+        description: 'Perform full code-sniffer/mess-detector analysis if true, partial analysis if false.'
+        required: false
+        type: string
+        default: 'true'
+      enable-unit-tests:
+        description: 'Enable unit tests if true.'
+        required: false
+        type: string
+        default: 'true'
+      enable-integration-tests:
+        description: 'Enable integration tests if true.'
+        required: false
+        type: string
+        default: 'true'
+      enable-compilation:
+        description: 'Enable compilation if true.'
+        required: false
+        type: string
+        default: 'true'
+      enable-mess-detector:
+        description: 'Enable mess detector if true.'
+        required: false
+        type: string
+        default: 'true'
+      enable-code-sniffer:
+        description: 'Enable code sniffer if true.'
+        required: false
+        type: string
+        default: 'true'
+    secrets:
+      composer-auth:
+        description: 'Content of auth.json file.'
+        required: true
+
+jobs:
+  compilation:
+    if: ${{inputs.enable-compilation == 'true'}}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vaimo/image-action-magento:${{inputs.version}}-v1
+    steps:
+      - name: Compilation action
+        uses: vaimo/action-magento-compilation@v1
+        with:
+          composer-auth: ${{secrets.composer-auth}}
+          working-directory: ${{inputs.working-directory}}
+
+  code-sniffer:
+    if: ${{inputs.enable-code-sniffer == 'true'}}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vaimo/image-action-magento:${{inputs.version}}-v1
+    steps:
+      - name: Code Sniffer action
+        uses: vaimo/action-magento-code-sniffer@v1
+        with:
+          directories: ${{inputs.code-sniffer-directories}}
+          working-directory: ${{inputs.working-directory}}
+          full-analysis: ${{inputs.full-analysis}}
+
+  mess-detector:
+    if: ${{inputs.enable-mess-detector == 'true'}}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vaimo/image-action-magento:${{inputs.version}}-v1
+    steps:
+      - name: Mess Detector action
+        uses: vaimo/action-magento-mess-detector@v1
+        with:
+          directories: ${{inputs.mess-detector-directories}}
+          working-directory: ${{inputs.working-directory}}
+          full-analysis: ${{inputs.full-analysis}}
+
+  unit-tests:
+    if: ${{inputs.enable-unit-tests == 'true'}}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vaimo/image-action-magento:${{inputs.version}}-v1
+    steps:
+      - name: Unit Tests action
+        uses: vaimo/action-magento-tests@v1
+        with:
+          composer-auth: ${{secrets.composer-auth}}
+          working-directory: ${{inputs.working-directory}}
+          config-path: dev/tests/unit/ci.workflow.phpunit.xml
+          test-suites: ${{inputs.unit-tests-suites}}
+
+  integration-tests:
+    if: ${{inputs.enable-integration-tests == 'true'}}
+    uses: vaimo/github-workflows-magento-integration-tests/.github/workflows/ci-integration-tests.yml@v1
+    with:
+      version: ${{inputs.version}}
+      working-directory: ${{inputs.working-directory}}
+      config-path: dev/tests/integration/ci.workflow.phpunit.xml
+      test-suites: ${{inputs.integration-tests-suites}}
+    secrets:
+      composer-auth: ${{secrets.composer-auth}}

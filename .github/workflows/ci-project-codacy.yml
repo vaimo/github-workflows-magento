@@ -1,0 +1,84 @@
+name: Adobe Commerce Project CI Workflow (With Codacy)
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Adobe Commerce version.'
+        required: true
+        type: string
+      working-directory:
+        description: 'Set working directory for your workflow.'
+        required: false
+        type: string
+      unit-tests-suites:
+        description: 'Unit test suites to be executed.'
+        required: false
+        type: string
+      integration-tests-suites:
+        description: 'Integration test suites to be executed.'
+        required: false
+        type: string
+      enable-unit-tests:
+        description: 'Enable unit tests if true.'
+        required: false
+        type: string
+        default: 'true'
+      enable-integration-tests:
+        description: 'Enable integration tests if true.'
+        required: false
+        type: string
+        default: 'true'
+      enable-compilation:
+        description: 'Enable compilation if true.'
+        required: false
+        type: string
+        default: 'true'
+    secrets:
+      composer-auth:
+        description: 'Content of auth.json file.'
+        required: true
+      codacy-token:
+        description: 'Codacy project token.'
+        required: true
+
+jobs:
+  compilation:
+    if: ${{inputs.enable-compilation == 'true'}}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vaimo/image-action-magento:${{inputs.version}}-v1
+    steps:
+      - name: Compilation action
+        uses: vaimo/action-magento-compilation@v1
+        with:
+          composer-auth: ${{secrets.composer-auth}}
+          working-directory: ${{inputs.working-directory}}
+
+  unit-tests:
+    if: ${{inputs.enable-unit-tests == 'true'}}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vaimo/image-action-magento:${{inputs.version}}-xdebug-v1
+    steps:
+      - name: Unit Tests action
+        uses: vaimo/action-magento-tests@v1
+        with:
+          composer-auth: ${{secrets.composer-auth}}
+          working-directory: ${{inputs.working-directory}}
+          config-path: dev/tests/unit/ci.workflow.phpunit.xml
+          test-suites: ${{inputs.unit-tests-suites}}
+          upload-to-codacy: true
+          codacy-token: ${{secrets.codacy-token}}
+
+  integration-tests:
+    if: ${{inputs.enable-integration-tests == 'true'}}
+    uses: vaimo/github-workflows-magento-integration-tests/.github/workflows/ci-integration-tests.yml@v1
+    with:
+      version: ${{inputs.version}}
+      working-directory: ${{inputs.working-directory}}
+      config-path: dev/tests/integration/ci.workflow.phpunit.xml
+      test-suites: ${{inputs.integration-tests-suites}}
+    secrets:
+      composer-auth: ${{secrets.composer-auth}}
